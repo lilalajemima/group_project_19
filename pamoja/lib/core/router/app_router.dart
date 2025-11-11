@@ -32,14 +32,23 @@ class AppRouter {
         path: onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(path: login, builder: (context, state) => const LoginScreen()),
-      GoRoute(path: signup, builder: (context, state) => const SignupScreen()),
+      GoRoute(
+        path: login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: signup,
+        builder: (context, state) => const SignupScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) {
           return MainNavigationScreen(child: child);
         },
         routes: [
-          GoRoute(path: home, builder: (context, state) => const HomeScreen()),
+          GoRoute(
+            path: home,
+            builder: (context, state) => const HomeScreen(),
+          ),
           GoRoute(
             path: explore,
             builder: (context, state) => const ExploreScreen(),

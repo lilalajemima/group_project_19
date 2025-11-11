@@ -105,7 +105,10 @@ class AppTheme {
           horizontal: 20,
           vertical: 18,
         ),
-        hintStyle: GoogleFonts.inter(fontSize: 16, color: mediumGray),
+        hintStyle: GoogleFonts.inter(
+          fontSize: 16,
+          color: mediumGray,
+        ),
       ),
 
       appBarTheme: AppBarTheme(
@@ -137,7 +140,9 @@ class AppTheme {
           color: darkText,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
       ),
     );
   }
