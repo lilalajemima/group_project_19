@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../presentation/screens/onboarding/onboarding_screen.dart';
-import '../../presentation/screens/auth/login_screen.dart';
-import '../../presentation/screens/auth/signup_screen.dart';
-import '../../presentation/screens/main/main_navigation_screen.dart';
-import '../../presentation/screens/home/home_screen.dart';
-import '../../presentation/screens/explore/explore_screen.dart';
-import '../../presentation/screens/explore/opportunity_detail_screen.dart';
-import '../../presentation/screens/tracker/tracker_screen.dart';
-import '../../presentation/screens/community/community_screen.dart';
-import '../../presentation/screens/profile/profile_screen.dart';
-import '../../presentation/screens/profile/settings_screen.dart';
+import '../../../presentation/screens/onboarding/onboarding_screen.dart';
+import '../../../presentation/screens/auth/login_screen.dart';
+import '../../../presentation/screens/auth/signup_screen.dart';
+import '../../../presentation/screens/main/main_navigation_screen.dart';
+import '../../../presentation/screens/home/home_screen.dart';
+import '../../../presentation/screens/explore/explore_screen.dart';
+import '../../../presentation/screens/explore/opportunity_detail_screen.dart';
+import '../../../presentation/screens/tracker/tracker_screen.dart';
+import '../../../presentation/screens/community/community_screen.dart';
+import '../../../presentation/screens/profile/profile_screen.dart';
+import '../../../presentation/screens/profile/settings_screen.dart';
 
 class AppRouter {
   static const String onboarding = '/';
@@ -32,23 +32,14 @@ class AppRouter {
         path: onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: login,
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: signup,
-        builder: (context, state) => const SignupScreen(),
-      ),
+      GoRoute(path: login, builder: (context, state) => const LoginScreen()),
+      GoRoute(path: signup, builder: (context, state) => const SignupScreen()),
       ShellRoute(
         builder: (context, state, child) {
           return MainNavigationScreen(child: child);
         },
         routes: [
-          GoRoute(
-            path: home,
-            builder: (context, state) => const HomeScreen(),
-          ),
+          GoRoute(path: home, builder: (context, state) => const HomeScreen()),
           GoRoute(
             path: explore,
             builder: (context, state) => const ExploreScreen(),
