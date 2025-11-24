@@ -91,9 +91,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLoginRequested(
-      LoginRequested event,
-      Emitter<AuthState> emit,
-      ) async {
+    LoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(AuthLoading());
 
     try {
@@ -107,11 +107,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         await prefs.setString('name', 'Demo User');
         await prefs.setBool('isLoggedIn', true);
 
-        emit(Authenticated(
-          userId: 'user_123',
-          email: event.email,
-          name: 'Demo User',
-        ));
+        emit(
+          Authenticated(
+            userId: 'user_123',
+            email: event.email,
+            name: 'Demo User',
+          ),
+        );
       } else {
         emit(AuthError('Invalid credentials'));
       }
@@ -121,9 +123,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onSignupRequested(
-      SignupRequested event,
-      Emitter<AuthState> emit,
-      ) async {
+    SignupRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(AuthLoading());
 
     try {
@@ -132,16 +134,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (event.email.isNotEmpty &&
           event.password.isNotEmpty &&
           event.name.isNotEmpty) {
-        await prefs.setString('userId', 'user_${DateTime.now().millisecondsSinceEpoch}');
+        await prefs.setString(
+          'userId',
+          'user_${DateTime.now().millisecondsSinceEpoch}',
+        );
         await prefs.setString('email', event.email);
         await prefs.setString('name', event.name);
         await prefs.setBool('isLoggedIn', true);
 
-        emit(Authenticated(
-          userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
-          email: event.email,
-          name: event.name,
-        ));
+        emit(
+          Authenticated(
+            userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
+            email: event.email,
+            name: event.name,
+          ),
+        );
       } else {
         emit(AuthError('All fields are required'));
       }
@@ -151,9 +158,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onGoogleSignInRequested(
-      GoogleSignInRequested event,
-      Emitter<AuthState> emit,
-      ) async {
+    GoogleSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(AuthLoading());
 
     try {
@@ -164,20 +171,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await prefs.setString('name', 'Google User');
       await prefs.setBool('isLoggedIn', true);
 
-      emit(Authenticated(
-        userId: 'google_user_123',
-        email: 'user@gmail.com',
-        name: 'Google User',
-      ));
+      emit(
+        Authenticated(
+          userId: 'google_user_123',
+          email: 'user@gmail.com',
+          name: 'Google User',
+        ),
+      );
     } catch (e) {
       emit(AuthError('Google sign-in failed: ${e.toString()}'));
     }
   }
 
   Future<void> _onFacebookSignInRequested(
-      FacebookSignInRequested event,
-      Emitter<AuthState> emit,
-      ) async {
+    FacebookSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(AuthLoading());
 
     try {
@@ -188,28 +197,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await prefs.setString('name', 'Facebook User');
       await prefs.setBool('isLoggedIn', true);
 
-      emit(Authenticated(
-        userId: 'fb_user_123',
-        email: 'user@facebook.com',
-        name: 'Facebook User',
-      ));
+      emit(
+        Authenticated(
+          userId: 'fb_user_123',
+          email: 'user@facebook.com',
+          name: 'Facebook User',
+        ),
+      );
     } catch (e) {
       emit(AuthError('Facebook sign-in failed: ${e.toString()}'));
     }
   }
 
   Future<void> _onLogoutRequested(
-      LogoutRequested event,
-      Emitter<AuthState> emit,
-      ) async {
+    LogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     await prefs.clear();
     emit(Unauthenticated());
   }
 
   Future<void> _onCheckAuthStatus(
-      CheckAuthStatus event,
-      Emitter<AuthState> emit,
-      ) async {
+    CheckAuthStatus event,
+    Emitter<AuthState> emit,
+  ) async {
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
     if (isLoggedIn) {
