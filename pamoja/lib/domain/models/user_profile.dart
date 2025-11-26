@@ -1,5 +1,11 @@
 import 'package:equatable/equatable.dart';
 
+// This model represents a user's full profile, including personal info,
+// skills, interests, activity history, and role in the app.
+
+// It supports immutability, JSON serialization, and value comparison
+// through Equatable for easy state management and API integration.
+
 class UserProfile extends Equatable {
   final String id;
   final String name;

@@ -1,10 +1,18 @@
+// This is the SettingsScreen where users can manage app preferences and account options.
+// It handles notifications, dark mode, password changes, and logging out, with preferences saved locally using SharedPreferences and state managed via Bloc/Cubit.
+
+// The UI is organized into sections: Notifications, Appearance, and Account.
+// Each section updates reactively and shows feedback via SnackBars. I also handle dialogs for password changes and logout confirmation.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/theme/theme_cubit.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,7 +24,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _emailNotifications = true;
-  bool _darkMode = false;
+  bool _inAppNotifications = true;
 
   @override
   void initState() {
@@ -29,13 +37,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _notificationsEnabled = prefs.getBool('notifications') ?? true;
       _emailNotifications = prefs.getBool('emailNotifications') ?? true;
-      _darkMode = prefs.getBool('darkMode') ?? false;
+      _inAppNotifications = prefs.getBool('inAppNotifications') ?? true;
     });
   }
 
-  Future<void> _savePreference(String key, bool value) async {
+  Future<void> _savePreference(String key, dynamic value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, value);
+    if (value is bool) {
+      await prefs.setBool(key, value);
+    } else if (value is String) {
+      await prefs.setString(key, value);
+    }
   }
 
   @override
@@ -45,115 +57,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           const SizedBox(height: 8),
+
+          // Notifications Section
           _buildSectionHeader('Notifications'),
           _buildSwitchTile(
-            title: 'Push Notifications',
-            subtitle: 'Receive notifications about new opportunities',
+            title: 'Enable Notifications',
+            subtitle: 'Receive all types of notifications',
             value: _notificationsEnabled,
             onChanged: (value) {
               setState(() => _notificationsEnabled = value);
               _savePreference('notifications', value);
-            },
-          ),
-          _buildSwitchTile(
-            title: 'Email Notifications',
-            subtitle: 'Receive updates via email',
-            value: _emailNotifications,
-            onChanged: (value) {
-              setState(() => _emailNotifications = value);
-              _savePreference('emailNotifications', value);
-            },
-          ),
-          const Divider(),
-          _buildSectionHeader('Appearance'),
-          _buildSwitchTile(
-            title: 'Dark Mode',
-            subtitle: 'Use dark theme',
-            value: _darkMode,
-            onChanged: (value) {
-              setState(() => _darkMode = value);
-              _savePreference('darkMode', value);
+
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Theme will change on next app launch'),
+                SnackBar(
+                  content: Text(
+                    value ? 'Notifications enabled' : 'Notifications disabled',
+                  ),
+                  backgroundColor: AppTheme.primaryGreen,
                 ),
               );
             },
           ),
+          if (_notificationsEnabled) ...[
+            _buildSwitchTile(
+              title: 'In-App Notifications',
+              subtitle: 'Receive notifications within the app',
+              value: _inAppNotifications,
+              onChanged: (value) {
+                setState(() => _inAppNotifications = value);
+                _savePreference('inAppNotifications', value);
+              },
+            ),
+            _buildSwitchTile(
+              title: 'Email Notifications',
+              subtitle: 'Receive updates via email',
+              value: _emailNotifications,
+              onChanged: (value) {
+                setState(() => _emailNotifications = value);
+                _savePreference('emailNotifications', value);
+              },
+            ),
+          ],
           const Divider(),
-          _buildSectionHeader('Account'),
-          _buildListTile(
-            title: 'Edit Profile',
-            icon: Icons.person_outline,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit profile coming soon!')),
+
+          // Appearance Section
+          _buildSectionHeader('Appearance'),
+          BlocBuilder<ThemeCubit, bool>(
+            builder: (context, isDarkMode) {
+              return _buildSwitchTile(
+                title: 'Dark Mode',
+                subtitle: 'Use dark theme',
+                value: isDarkMode,
+                onChanged: (value) {
+                  context.read<ThemeCubit>().toggleTheme();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        value ? 'Dark mode enabled' : 'Light mode enabled',
+                      ),
+                      backgroundColor: AppTheme.primaryGreen,
+                    ),
+                  );
+                },
               );
             },
           ),
+          const Divider(),
+
+          // Account Section
+          _buildSectionHeader('Account'),
           _buildListTile(
             title: 'Change Password',
             icon: Icons.lock_outline,
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Change password coming soon!')),
-              );
-            },
-          ),
-          _buildListTile(
-            title: 'Privacy Settings',
-            icon: Icons.privacy_tip_outlined,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Privacy settings coming soon!')),
-              );
+              _showChangePasswordDialog(context);
             },
           ),
           const Divider(),
-          _buildSectionHeader('Support'),
-          _buildListTile(
-            title: 'Help Center',
-            icon: Icons.help_outline,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Help center coming soon!')),
-              );
-            },
-          ),
-          _buildListTile(
-            title: 'Terms of Service',
-            icon: Icons.description_outlined,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Terms of service coming soon!')),
-              );
-            },
-          ),
-          _buildListTile(
-            title: 'Privacy Policy',
-            icon: Icons.policy_outlined,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Privacy policy coming soon!')),
-              );
-            },
-          ),
-          const Divider(),
+
+          const SizedBox(height: 16),
+
+          // Logout Button
           Padding(
             padding: const EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: () {
-                _showLogoutDialog(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Logout'),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  _showLogoutDialog(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Logout'),
+              ),
             ),
           ),
+
           const SizedBox(height: 16),
+
+          // App Version
           Center(
-            child: Text(
-              'Version 1.0.0',
-              style: Theme.of(context).textTheme.bodyMedium,
+            child: Column(
+              children: [
+                Text(
+                  'Pamoja',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Version 1.0.0',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.mediumGray),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),
@@ -192,14 +212,145 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildListTile({
     required String title,
+    String? subtitle,
     required IconData icon,
     required VoidCallback onTap,
   }) {
     return ListTile(
       leading: Icon(icon, color: AppTheme.mediumGray),
       title: Text(title),
+      subtitle: subtitle != null ? Text(subtitle) : null,
       trailing: const Icon(Icons.chevron_right, color: AppTheme.mediumGray),
       onTap: onTap,
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: currentPasswordController,
+                  obscureText: obscureCurrent,
+                  decoration: InputDecoration(
+                    labelText: 'Current Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureCurrent
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => obscureCurrent = !obscureCurrent),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: newPasswordController,
+                  obscureText: obscureNew,
+                  decoration: InputDecoration(
+                    labelText: 'New Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureNew ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () => setState(() => obscureNew = !obscureNew),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: obscureConfirm,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm New Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureConfirm
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => obscureConfirm = !obscureConfirm),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (newPasswordController.text !=
+                    confirmPasswordController.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Passwords do not match'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                if (newPasswordController.text.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Password must be at least 6 characters'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null && user.email != null) {
+                    final credential = EmailAuthProvider.credential(
+                      email: user.email!,
+                      password: currentPasswordController.text,
+                    );
+                    await user.reauthenticateWithCredential(credential);
+                    await user.updatePassword(newPasswordController.text);
+
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Password changed successfully!'),
+                        backgroundColor: AppTheme.primaryGreen,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Change'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
