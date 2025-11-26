@@ -31,6 +31,9 @@ class _LoginScreenState extends State<LoginScreen> {
         listener: (context, state) {
           if (state is Authenticated) {
             context.go(AppRouter.home);
+          } else if (state is EmailVerificationPending) {
+            context
+                .go('/verify-email?email=${Uri.encodeComponent(state.email)}');
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -130,29 +133,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 24),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
-                      return ElevatedButton(
-                        onPressed: state is AuthLoading
-                            ? null
-                            : () {
-                          if (_formKey.currentState!.validate()) {
-                            context.read<AuthBloc>().add(
-                              LoginRequested(
-                                email: _emailController.text,
-                                password: _passwordController.text,
-                              ),
-                            );
-                          }
-                        },
-                        child: state is AuthLoading
-                            ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                            : const Text('Login'),
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: state is AuthLoading
+                              ? null
+                              : () {
+                                  if (_formKey.currentState!.validate()) {
+                                    context.read<AuthBloc>().add(
+                                          LoginRequested(
+                                            email: _emailController.text.trim(),
+                                            password: _passwordController.text,
+                                          ),
+                                        );
+                                  }
+                                },
+                          child: state is AuthLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Login'),
+                        ),
                       );
                     },
                   ),
@@ -171,51 +177,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            context
-                                .read<AuthBloc>()
-                                .add(GoogleSignInRequested());
-                          },
-                          icon: Image.network(
-                            'https://www.google.com/favicon.ico',
-                            height: 20,
-                            width: 20,
-                          ),
-                          label: const Text('Google'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: const BorderSide(color: AppTheme.lightGreen),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      context.read<AuthBloc>().add(GoogleSignInRequested());
+                    },
+                    icon: Image.network(
+                      'https://www.google.com/favicon.ico',
+                      height: 20,
+                      width: 20,
+                    ),
+                    label: const Text('Continue with Google'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: AppTheme.lightGreen),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            context
-                                .read<AuthBloc>()
-                                .add(FacebookSignInRequested());
-                          },
-                          icon:
-                          const Icon(Icons.facebook, color: Colors.blue),
-                          label: const Text('Facebook'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: const BorderSide(color: AppTheme.lightGreen),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Row(
@@ -239,6 +217,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 32),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        context.go('/admin/login');
+                      },
+                      icon: Icon(
+                        Icons.admin_panel_settings,
+                        color: AppTheme.mediumGray,
+                      ),
+                      label: Text(
+                        'Admin Portal',
+                        style: TextStyle(color: AppTheme.mediumGray),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
