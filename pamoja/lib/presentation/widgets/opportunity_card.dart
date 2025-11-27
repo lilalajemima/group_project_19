@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:convert';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/opportunity.dart';
 
@@ -19,16 +20,18 @@ class OpportunityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: isDarkMode ? 0.3 : 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -39,29 +42,7 @@ class OpportunityCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: CachedNetworkImage(
-                    imageUrl: opportunity.imageUrl,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 200,
-                      color: AppTheme.lightGray,
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 200,
-                      color: AppTheme.lightGray,
-                      child: const Icon(Icons.image_not_supported),
-                    ),
-                  ),
-                ),
+                _buildImageWidget(context, opportunity.imageUrl, isDarkMode),
                 Positioned(
                   top: 12,
                   left: 12,
@@ -91,11 +72,11 @@ class OpportunityCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDarkMode ? AppTheme.darkCard : Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 8,
                           ),
                         ],
@@ -131,7 +112,7 @@ class OpportunityCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.location_on_outlined,
                         size: 16,
                         color: AppTheme.mediumGray,
@@ -152,7 +133,7 @@ class OpportunityCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.access_time,
                         size: 16,
                         color: AppTheme.mediumGray,
@@ -170,6 +151,74 @@ class OpportunityCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(BuildContext context, String imageUrl, bool isDarkMode) {
+    // Check if it's a base64 image
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        // Extract the base64 part after the comma
+        final base64String = imageUrl.split(',')[1];
+        final bytes = base64Decode(base64String);
+        
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+          child: Image.memory(
+            bytes,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              print('❌ Error loading base64 image: $error');
+              return _buildPlaceholder(context, isDarkMode);
+            },
+          ),
+        );
+      } catch (e) {
+        print('❌ Error decoding base64 image: $e');
+        return _buildPlaceholder(context, isDarkMode);
+      }
+    }
+    
+    // It's a network URL
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(16),
+      ),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          height: 200,
+          color: isDarkMode ? AppTheme.darkCard : AppTheme.lightGray,
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        errorWidget: (context, url, error) {
+          print('❌ Error loading network image: $error');
+          return _buildPlaceholder(context, isDarkMode);
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(BuildContext context, bool isDarkMode) {
+    return Container(
+      height: 200,
+      color: isDarkMode ? AppTheme.darkCard : AppTheme.lightGray,
+      child: const Center(
+        child: Icon(
+          Icons.image_not_supported,
+          size: 48,
+          color: AppTheme.mediumGray,
         ),
       ),
     );
