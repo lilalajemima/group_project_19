@@ -60,7 +60,8 @@ class OpportunitiesLoaded extends OpportunitiesState {
   });
 
   @override
-  List<Object?> get props => [opportunities, selectedCategory, savedOpportunityIds];
+  List<Object?> get props =>
+      [opportunities, selectedCategory, savedOpportunityIds];
 
   OpportunitiesLoaded copyWith({
     List<Opportunity>? opportunities,
