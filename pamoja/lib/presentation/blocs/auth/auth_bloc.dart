@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 // Events
 abstract class AuthEvent extends Equatable {
@@ -35,11 +37,11 @@ class SignupRequested extends AuthEvent {
 
 class GoogleSignInRequested extends AuthEvent {}
 
-class FacebookSignInRequested extends AuthEvent {}
-
 class LogoutRequested extends AuthEvent {}
 
 class CheckAuthStatus extends AuthEvent {}
+
+class ResendVerificationEmail extends AuthEvent {}
 
 // States
 abstract class AuthState extends Equatable {
@@ -68,6 +70,19 @@ class Authenticated extends AuthState {
 
 class Unauthenticated extends AuthState {}
 
+class EmailVerificationPending extends AuthState {
+  final String email;
+  final String userId;
+
+  EmailVerificationPending({
+    required this.email,
+    required this.userId,
+  });
+
+  @override
+  List<Object?> get props => [email, userId];
+}
+
 class AuthError extends AuthState {
   final String message;
 
@@ -79,15 +94,24 @@ class AuthError extends AuthState {
 
 // BLoC
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final SharedPreferences prefs;
+  final FirebaseAuth _firebaseAuth;
+  final FirebaseFirestore _firestore;
+  final GoogleSignIn _googleSignIn;
 
-  AuthBloc(this.prefs) : super(AuthInitial()) {
+  AuthBloc({
+    FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestore,
+    GoogleSignIn? googleSignIn,
+  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _googleSignIn = googleSignIn ?? GoogleSignIn(),
+        super(AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
     on<SignupRequested>(_onSignupRequested);
     on<GoogleSignInRequested>(_onGoogleSignInRequested);
-    on<FacebookSignInRequested>(_onFacebookSignInRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<CheckAuthStatus>(_onCheckAuthStatus);
+    on<ResendVerificationEmail>(_onResendVerificationEmail);
   }
 
   Future<void> _onLoginRequested(
@@ -97,28 +121,63 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: event.email.trim(),
+        password: event.password,
+      );
 
-      // For demo purposes - accept any email/password
-      if (event.email.isNotEmpty && event.password.isNotEmpty) {
-        await prefs.setString('userId', 'user_123');
-        await prefs.setString('email', event.email);
-        await prefs.setString('name', 'Demo User');
-        await prefs.setBool('isLoggedIn', true);
-
-        emit(
-          Authenticated(
-            userId: 'user_123',
-            email: event.email,
-            name: 'Demo User',
-          ),
-        );
-      } else {
-        emit(AuthError('Invalid credentials'));
+      final user = userCredential.user;
+      if (user == null) {
+        emit(AuthError('Authentication failed'));
+        return;
       }
+
+      // For login, we DON'T check email verification
+      // Only check if user profile exists
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        emit(AuthError('User profile not found. Please sign up.'));
+        await _firebaseAuth.signOut();
+        return;
+      }
+
+      final userData = userDoc.data()!;
+
+      emit(Authenticated(
+        userId: user.uid,
+        email: user.email!,
+        name: userData['name'] ?? 'User',
+      ));
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Login failed';
+
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No account found with this email';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Incorrect password';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many attempts. Please try again later';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Invalid email or password';
+          break;
+        default:
+          errorMessage = 'Login failed: ${e.message}';
+      }
+
+      emit(AuthError(errorMessage));
     } catch (e) {
-      emit(AuthError('Login failed: ${e.toString()}'));
+      emit(AuthError('An unexpected error occurred: ${e.toString()}'));
     }
   }
 
@@ -129,31 +188,83 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      await Future.delayed(const Duration(seconds: 2));
+      final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: event.email.trim(),
+        password: event.password,
+      );
 
-      if (event.email.isNotEmpty &&
-          event.password.isNotEmpty &&
-          event.name.isNotEmpty) {
-        await prefs.setString(
-          'userId',
-          'user_${DateTime.now().millisecondsSinceEpoch}',
-        );
-        await prefs.setString('email', event.email);
-        await prefs.setString('name', event.name);
-        await prefs.setBool('isLoggedIn', true);
+      final user = userCredential.user;
+      if (user == null) {
+        emit(AuthError('Signup failed'));
+        return;
+      }
 
-        emit(
-          Authenticated(
-            userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
-            email: event.email,
-            name: event.name,
-          ),
-        );
-      } else {
-        emit(AuthError('All fields are required'));
+      // Update display name
+      await user.updateDisplayName(event.name);
+
+      // Send email verification
+      await user.sendEmailVerification();
+
+      // Create user document in Firestore
+      await _firestore.collection('users').doc(user.uid).set({
+        'name': event.name.trim(),
+        'email': event.email.trim(),
+        'role': 'volunteer',
+        'avatarUrl': 'https://i.pravatar.cc/300?u=${user.uid}',
+        'skills': [],
+        'interests': [],
+        'volunteerHistory': [],
+        'certificates': [],
+        'totalHours': 0,
+        'completedActivities': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'emailVerified': false,
+      });
+
+      // Emit verification pending state ONLY for signup
+      emit(EmailVerificationPending(
+        email: user.email!,
+        userId: user.uid,
+      ));
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Signup failed';
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMessage = 'This email is already registered';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'weak-password':
+          errorMessage = 'Password is too weak. Use at least 6 characters';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled';
+          break;
+        default:
+          errorMessage = 'Signup failed: ${e.message}';
+      }
+
+      emit(AuthError(errorMessage));
+    } catch (e) {
+      emit(AuthError('An unexpected error occurred: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onResendVerificationEmail(
+    ResendVerificationEmail event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+        // Don't emit error state here, just a success message
+        // The UI will handle showing the snackbar
       }
     } catch (e) {
-      emit(AuthError('Signup failed: ${e.toString()}'));
+      emit(AuthError('Failed to send verification email: ${e.toString()}'));
     }
   }
 
@@ -164,48 +275,61 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      await Future.delayed(const Duration(seconds: 2));
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      await prefs.setString('userId', 'google_user_123');
-      await prefs.setString('email', 'user@gmail.com');
-      await prefs.setString('name', 'Google User');
-      await prefs.setBool('isLoggedIn', true);
+      if (googleUser == null) {
+        emit(Unauthenticated());
+        return;
+      }
 
-      emit(
-        Authenticated(
-          userId: 'google_user_123',
-          email: 'user@gmail.com',
-          name: 'Google User',
-        ),
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
+
+      final userCredential =
+          await _firebaseAuth.signInWithCredential(credential);
+
+      final user = userCredential.user;
+      if (user == null) {
+        emit(AuthError('Google sign-in failed'));
+        return;
+      }
+
+      // Check if user document exists, create if not
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        await _firestore.collection('users').doc(user.uid).set({
+          'name': user.displayName ?? 'User',
+          'email': user.email!,
+          'role': 'volunteer',
+          'avatarUrl': user.photoURL ?? 'https://i.pravatar.cc/300?u=${user.uid}',
+          'skills': [],
+          'interests': [],
+          'volunteerHistory': [],
+          'certificates': [],
+          'totalHours': 0,
+          'completedActivities': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'emailVerified': true, // Google accounts are pre-verified
+        });
+      }
+
+      final userData = userDoc.exists
+          ? userDoc.data()!
+          : {'name': user.displayName ?? 'User'};
+
+      emit(Authenticated(
+        userId: user.uid,
+        email: user.email!,
+        name: userData['name'] ?? 'User',
+      ));
     } catch (e) {
       emit(AuthError('Google sign-in failed: ${e.toString()}'));
-    }
-  }
-
-  Future<void> _onFacebookSignInRequested(
-    FacebookSignInRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-
-    try {
-      await Future.delayed(const Duration(seconds: 2));
-
-      await prefs.setString('userId', 'fb_user_123');
-      await prefs.setString('email', 'user@facebook.com');
-      await prefs.setString('name', 'Facebook User');
-      await prefs.setBool('isLoggedIn', true);
-
-      emit(
-        Authenticated(
-          userId: 'fb_user_123',
-          email: 'user@facebook.com',
-          name: 'Facebook User',
-        ),
-      );
-    } catch (e) {
-      emit(AuthError('Facebook sign-in failed: ${e.toString()}'));
     }
   }
 
@@ -213,23 +337,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    await prefs.clear();
-    emit(Unauthenticated());
+    try {
+      await _firebaseAuth.signOut();
+      await _googleSignIn.signOut();
+      emit(Unauthenticated());
+    } catch (e) {
+      emit(AuthError('Logout failed: ${e.toString()}'));
+    }
   }
 
   Future<void> _onCheckAuthStatus(
     CheckAuthStatus event,
     Emitter<AuthState> emit,
   ) async {
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    try {
+      final user = _firebaseAuth.currentUser;
 
-    if (isLoggedIn) {
-      final userId = prefs.getString('userId') ?? '';
-      final email = prefs.getString('email') ?? '';
-      final name = prefs.getString('name') ?? '';
+      if (user == null) {
+        emit(Unauthenticated());
+        return;
+      }
 
-      emit(Authenticated(userId: userId, email: email, name: name));
-    } else {
+      // For CheckAuthStatus, we DON'T check email verification
+      // This allows users who verified their email to stay logged in
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        emit(Authenticated(
+          userId: user.uid,
+          email: user.email!,
+          name: userData['name'] ?? 'User',
+        ));
+      } else {
+        await _firebaseAuth.signOut();
+        emit(Unauthenticated());
+      }
+    } catch (e) {
       emit(Unauthenticated());
     }
   }
