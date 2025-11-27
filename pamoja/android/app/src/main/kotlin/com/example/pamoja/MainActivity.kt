@@ -1,4 +1,4 @@
-package com.example.pamoja
+package com.group19.pamoja
 
 import io.flutter.embedding.android.FlutterActivity
 
