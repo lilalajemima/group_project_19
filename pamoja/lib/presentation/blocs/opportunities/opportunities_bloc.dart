@@ -71,8 +71,7 @@ class OpportunitiesLoaded extends OpportunitiesState {
   }) {
     return OpportunitiesLoaded(
       opportunities: opportunities ?? this.opportunities,
-      selectedCategory:
-          clearCategory ? null : (selectedCategory ?? this.selectedCategory),
+      selectedCategory: clearCategory ? null : (selectedCategory ?? this.selectedCategory),
       savedOpportunityIds: savedOpportunityIds ?? this.savedOpportunityIds,
     );
   }
@@ -110,8 +109,10 @@ class OpportunitiesBloc extends Bloc<OpportunitiesEvent, OpportunitiesState> {
 
     try {
       // Load opportunities from Firestore
-      final querySnapshot =
-          await _firestore.collection('opportunities').orderBy('title').get();
+      final querySnapshot = await _firestore
+          .collection('opportunities')
+          .orderBy('title')
+          .get();
 
       _allOpportunities = querySnapshot.docs
           .map((doc) => Opportunity.fromJson({
@@ -139,8 +140,7 @@ class OpportunitiesBloc extends Bloc<OpportunitiesEvent, OpportunitiesState> {
       final filtered = event.category.isEmpty
           ? _allOpportunities
           : _allOpportunities
-              .where((o) =>
-                  o.category.toLowerCase() == event.category.toLowerCase())
+              .where((o) => o.category.toLowerCase() == event.category.toLowerCase())
               .toList();
 
       emit(currentState.copyWith(
@@ -163,9 +163,7 @@ class OpportunitiesBloc extends Bloc<OpportunitiesEvent, OpportunitiesState> {
           : _allOpportunities
               .where((o) =>
                   o.title.toLowerCase().contains(event.query.toLowerCase()) ||
-                  o.description
-                      .toLowerCase()
-                      .contains(event.query.toLowerCase()))
+                  o.description.toLowerCase().contains(event.query.toLowerCase()))
               .toList();
 
       emit(currentState.copyWith(opportunities: filtered));
