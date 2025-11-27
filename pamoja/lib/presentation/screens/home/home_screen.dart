@@ -15,8 +15,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedCategory = '';
 
@@ -42,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+    
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -68,15 +67,14 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
             ),
           ),
-
+          
           // Tabs
           Container(
             color: Theme.of(context).scaffoldBackgroundColor,
             child: TabBar(
               controller: _tabController,
               labelColor: isDarkMode ? AppTheme.darkBackground : Colors.white,
-              unselectedLabelColor:
-                  isDarkMode ? AppTheme.lightText : AppTheme.darkText,
+              unselectedLabelColor: isDarkMode ? AppTheme.lightText : AppTheme.darkText,
               indicatorSize: TabBarIndicatorSize.label,
               indicator: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
@@ -94,8 +92,7 @@ class _HomeScreenState extends State<HomeScreen>
               tabs: [
                 Tab(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: _tabController.index == 0
@@ -107,8 +104,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 Tab(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: _tabController.index == 1
@@ -120,8 +116,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 Tab(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: _tabController.index == 2
@@ -134,9 +129,9 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-
+          
           const SizedBox(height: 20),
-
+          
           // Categories Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -173,9 +168,9 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-
+          
           const SizedBox(height: 20),
-
+          
           // "Opportunities Near You" heading
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -187,9 +182,9 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
             ),
           ),
-
+          
           const SizedBox(height: 12),
-
+          
           // Opportunities List
           Expanded(
             child: BlocBuilder<OpportunitiesBloc, OpportunitiesState>(
@@ -222,8 +217,7 @@ class _HomeScreenState extends State<HomeScreen>
                   } else if (_tabController.index == 2) {
                     // Saved - only show saved opportunities
                     displayOpportunities = state.opportunities
-                        .where(
-                            (opp) => state.savedOpportunityIds.contains(opp.id))
+                        .where((opp) => state.savedOpportunityIds.contains(opp.id))
                         .toList();
                   } else {
                     // Upcoming - show all for now
@@ -260,17 +254,15 @@ class _HomeScreenState extends State<HomeScreen>
 
                   return RefreshIndicator(
                     onRefresh: () async {
-                      context
-                          .read<OpportunitiesBloc>()
-                          .add(LoadOpportunities());
+                      context.read<OpportunitiesBloc>().add(LoadOpportunities());
                     },
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: displayOpportunities.length,
                       itemBuilder: (context, index) {
                         final opportunity = displayOpportunities[index];
-                        final isSaved =
-                            state.savedOpportunityIds.contains(opportunity.id);
+                        final isSaved = state.savedOpportunityIds
+                            .contains(opportunity.id);
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16),
@@ -337,7 +329,7 @@ class _OpportunityCompactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -359,8 +351,7 @@ class _OpportunityCompactCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppTheme.lightGreen,
                       borderRadius: BorderRadius.circular(16),
@@ -378,18 +369,17 @@ class _OpportunityCompactCard extends StatelessWidget {
                     onTap: onSaveToggle,
                     child: Icon(
                       isSaved ? Icons.bookmark : Icons.bookmark_border,
-                      color:
-                          isSaved ? AppTheme.primaryGreen : AppTheme.mediumGray,
+                      color: isSaved ? AppTheme.primaryGreen : AppTheme.mediumGray,
                       size: 24,
                     ),
                   ),
                 ],
               ),
             ),
-
+            
             // Image with proper loading
             _buildImageWidget(context, opportunity.imageUrl),
-
+            
             // Title and details
             Padding(
               padding: const EdgeInsets.all(12),
@@ -427,11 +417,10 @@ class _OpportunityCompactCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           opportunity.location,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.mediumGray,
-                                    fontSize: 12,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.mediumGray,
+                                fontSize: 12,
+                              ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -467,13 +456,13 @@ class _OpportunityCompactCard extends StatelessWidget {
 
   Widget _buildImageWidget(BuildContext context, String imageUrl) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+    
     // Check if it's a base64 image
     if (imageUrl.startsWith('data:image')) {
       try {
         final base64String = imageUrl.split(',')[1];
         final bytes = base64Decode(base64String);
-
+        
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(
             bottom: Radius.circular(12),
@@ -494,7 +483,7 @@ class _OpportunityCompactCard extends StatelessWidget {
         return _buildPlaceholder(context, isDarkMode);
       }
     }
-
+    
     // It's a network URL
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(
